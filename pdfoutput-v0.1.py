@@ -8,10 +8,11 @@ import os
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
+from PIL import Image, ImageOps
 
 
 # Folder path
-main_folder_path = r"C:\Users\syagi\Documents\Project-proteomics\PH005"
+main_folder_path = r"C:\Users\syagi\Documents\Project-proteomics\PH001"
 
 # function to save images to a pdf file with labels
 def save_to_pdf(image_files, output_pdf, dpi=300):
@@ -66,6 +67,7 @@ def save_to_pdf(image_files, output_pdf, dpi=300):
         count += 1
     c.save()
     print(f"saved stiched images to {output_pdf}")
+
 
 # Function to extract XML from TIFF and parse coordinates (X and Y) and dimensions (width & height)
 def extract_coordinates_and_dimensions(tif_files):
@@ -222,7 +224,10 @@ for folder in all_subfolders:
     folder_path = os.path.join(main_folder_path, folder)
     print(f"Processing folder: {folder_path}")
     
+    # find all TIFF files in specified folder
     all_tif_files = sorted(glob.glob(os.path.join(folder_path, "Image_XY01_*.tif")))
+
+    # Identify unique channels
     channels = sorted(
         set([os.path.basename(filename).split("_")[-1].replace(".tif", "") for filename in all_tif_files]),
         key=lambda x: int(re.search(r'CH(\d+)', x).group(1)) if re.search(r'CH(\d+)', x) else float('inf')
@@ -245,41 +250,10 @@ for folder in all_subfolders:
     # Overlay stitched images from all channels
     overlay_filename = os.path.join(folder_path, f"Overlay_{folder}.tif")
     overlay_images(stitched_images, overlay_filename)
-    #pdf_image_list_folder.append((overlay_filename, f"Overlay Image - {folder}"))
-
+   
     # Save folder's results to a PDF page
     save_to_pdf(pdf_image_list_folder, os.path.join(folder_path, f"{folder}_Results.pdf"))
     pdf_image_list.append((os.path.join(folder_path, f"{folder}_Results.pdf"), f"Folder: {folder}"))
 
-# find all TIFF files in specified folder
-all_tif_files = sorted(glob.glob(os.path.join(folder_path, "Image_XY01_*.tif")))
+################################ *****************  ########################################
 
-# Identify unique channels
-#channels = set([os.path.basename(filename).split("_")[-1].replace(".tif", "") for filename in all_tif_files])
-channels = sorted(
-    set([os.path.basename(filename).split("_")[-1].replace(".tif", "") for filename in all_tif_files]),
-    key=lambda x: int(re.search(r'CH(\d+)', x).group(1)) if re.search(r'CH(\d+)', x) else float('inf')
-)
-
-stitched_images = []
-pdf_image_list = []
-
-for channel in channels:
-    print(f"Processing channel: {channel} ")
-    # assign tiff files
-    tif_files = sorted([f for f in all_tif_files if f.endswith(f"{channel}.tif")])
-    # get all images for this channel
-    image_positions, dimensions, nm_per_pixel_values = extract_coordinates_and_dimensions(tif_files)
-    # output filename for stiched channel
-    output_filename = f"Stitched_{channel}.tif"
-    # stich images and store result
-    stiched_img = stitch_images(image_positions, tif_files, nm_per_pixel_values, output_filename)
-    stitched_images.append(stiched_img)
-
-    # Add to PDF image list
-    pdf_image_list.append((output_filename, f"Stitched Image - Channel {channel}"))
-
-
-# Final PDF to combine results from all folders
-final_pdf_output = os.path.join(folder_path, "Final_Results.pdf")
-save_to_pdf(pdf_image_list, final_pdf_output)
